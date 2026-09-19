@@ -556,12 +556,93 @@ Use concise bullets, standard section headings, and no tables or graphics.
             if skill and skill not in gap_items:
                 gap_items.append(skill)
 
+        # Presentation-only animation and controls; existing functionality remains intact.
+        st.markdown("""
+        <style>
+        @keyframes riseIn { from {opacity:0; transform:translateY(14px)} to {opacity:1; transform:translateY(0)} }
+        @keyframes softGlow { 0%,100% {box-shadow:0 0 0 rgba(80,150,255,0)} 50% {box-shadow:0 0 22px rgba(80,150,255,.16)} }
+        .learn-hero {padding:1.25rem 1.4rem;border-radius:18px;margin:.5rem 0 1rem;border:1px solid rgba(100,160,255,.35);background:linear-gradient(120deg,rgba(30,90,180,.20),rgba(110,70,200,.12),rgba(20,150,170,.12));animation:riseIn .7s ease-out both,softGlow 4s ease-in-out infinite}
+        .learn-card {border:1px solid rgba(130,160,200,.30);border-radius:16px;padding:1rem 1.1rem;margin:.65rem 0;background:linear-gradient(145deg,rgba(100,140,200,.10),rgba(140,100,200,.07));animation:riseIn .55s ease-out both;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+        .learn-card:hover {transform:translateY(-3px);border-color:rgba(100,170,255,.75);box-shadow:0 10px 28px rgba(40,90,170,.14)}
+        .learn-kicker {font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;opacity:.75;font-weight:700}
+        @media (prefers-reduced-motion: reduce) {.learn-hero,.learn-card {animation:none;transition:none}}
+        </style>
+        <div class="learn-hero"><div class="learn-kicker">Personalized learning sprint</div>
+        <h2 style="margin:.35rem 0">TURN SKILL GAPS INTO A DAILY CRASH COURSE</h2>
+        <p style="margin:0;opacity:.88">Daily topics • hands-on tasks • free learning sources • progress checkpoints</p></div>
+        """, unsafe_allow_html=True)
+
+        crash_days = st.select_slider(
+            "Crash course duration (days)", options=[3, 5, 7, 10, 14, 21, 30],
+            value=7, key="crash_course_days"
+        )
+        daily_hours = st.select_slider(
+            "Study time available per day",
+            options=["30 minutes", "1 hour", "2 hours", "3+ hours"],
+            value="1 hour", key="crash_course_daily_time"
+        )
+
         if gap_items:
             st.markdown("### **YOUR IDENTIFIED LEARNING GAPS**")
             for gap in gap_items:
                 st.markdown(f"- **{gap}**")
         else:
             st.info("The analysis did not identify missing or partially matched skills. You can still request a learning plan using the job description.")
+
+        if st.button("🚀 BUILD MY DAY-BY-DAY CRASH COURSE", type="primary", key="generate_crash_course"):
+            plan_resume = st.session_state.get("original_resume_text", "")
+            plan_jd = st.session_state.get("last_job_description", "")
+            plan_gaps = "\\n".join(f"- {x}" for x in gap_items) or "Identify cautious priorities from the resume and job description."
+            crash_system = """
+You are a practical career-learning coach. Create exactly the requested number of days.
+Base the plan on the supplied resume, job description, and gaps. Never imply the learner
+already knows a topic without evidence. For EVERY day provide: title, outcomes, ordered
+topics, time estimate within the daily budget, hands-on practice, self-check/deliverable,
+and recommended free source types. Prioritize essentials and label optional topics.
+Finish with a capstone and readiness checklist. Do not invent exact course titles or
+unverified direct video URLs; the app supplies topic-specific search links.
+Use readable Markdown with clear day headings and concise bullets.
+"""
+            crash_user = (
+                f"Make exactly {crash_days} days. Daily budget: {daily_hours}.\\n"
+                f"Resume:\\n{plan_resume}\\n\\nJob description:\\n{plan_jd}\\n\\n"
+                f"Missing/partial skills:\\n{plan_gaps}\\n\\n"
+                f"Additional verified details:\\n{st.session_state.get('last_verified_info', 'None provided')}"
+            )
+            with st.spinner("Designing your daily crash course..."):
+                try:
+                    st.session_state["daily_crash_course"] = call_ai(crash_system, crash_user)
+                    st.session_state["crash_course_gap_list"] = gap_items
+                    st.session_state["crash_course_duration"] = crash_days
+                except Exception as exc:
+                    st.error(f"Could not generate crash course: {exc}")
+
+        if st.session_state.get("daily_crash_course"):
+            st.markdown("## **YOUR DAY-BY-DAY CRASH COURSE**")
+            st.markdown(st.session_state["daily_crash_course"])
+            st.markdown("## **FREE LEARNING HUB — CHOOSE YOUR SOURCE**")
+            st.caption("Topic-specific search links help you choose free materials at your level. Check access/pricing before starting.")
+            from urllib.parse import quote_plus
+            course_topics = st.session_state.get("crash_course_gap_list", gap_items)
+            if not course_topics:
+                course_topics = ["the key skills for this job description"]
+            for idx, topic in enumerate(course_topics):
+                topic_text = str(topic)
+                q = quote_plus(topic_text + " beginner tutorial")
+                doc_q = quote_plus(topic_text + " official documentation")
+                st.markdown(
+                    f'<div class="learn-card"><div class="learn-kicker">Learning focus {idx+1}</div>'
+                    f'<h3 style="margin:.25rem 0 .6rem">{topic_text}</h3>'
+                    f'<p><a href="https://www.youtube.com/results?search_query={q}" target="_blank">▶ YouTube lessons</a>'
+                    f' &nbsp;·&nbsp; <a href="https://www.freecodecamp.org/news/search/?query={q}" target="_blank">freeCodeCamp</a>'
+                    f' &nbsp;·&nbsp; <a href="https://www.google.com/search?q={doc_q}" target="_blank">Official docs</a>'
+                    f' &nbsp;·&nbsp; <a href="https://www.coursera.org/search?query={q}" target="_blank">Coursera (check free options)</a>'
+                    f' &nbsp;·&nbsp; <a href="https://github.com/search?q={q}&type=repositories" target="_blank">GitHub practice</a></p></div>',
+                    unsafe_allow_html=True
+                )
+            st.markdown("### **DAILY PROGRESS CHECKLIST**")
+            for day_num in range(1, int(st.session_state.get("crash_course_duration", crash_days)) + 1):
+                st.checkbox(f"Day {day_num}: complete lessons, practice, and self-check", key=f"crash_course_done_{day_num}")
 
         if st.button("Generate my learning recommendations", type="primary", key="generate_learning_recs"):
             original = st.session_state.get("original_resume_text", "")
