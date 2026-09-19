@@ -1,0 +1,8 @@
+
+streamlit
+PyPDF2
+langchain-openai
+langchain-core
+reportlab
+python-docx
+google-genai
