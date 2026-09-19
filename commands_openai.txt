@@ -1,0 +1,25 @@
+# OpenAI Resume Analyzer - Windows
+
+# Step 1: Create/activate your virtual environment (optional but recommended)
+python -m venv venv
+venv\Scripts\activate
+
+# Step 2: Install/update required packages
+pip install --upgrade streamlit PyPDF2 pydantic langchain-openai langchain-core
+
+# Step 3: Run the application
+streamlit run app_openai.py
+
+# Step 4:
+# Open the Streamlit URL shown in the terminal (normally http://localhost:8501)
+
+# Step 5:
+# Paste your OpenAI API key into the password field in the sidebar.
+# Upload a text-based PDF resume.
+# Paste the target job description.
+# Click "Analyze Resume".
+
+# Important:
+# ChatGPT Free access and OpenAI API billing are separate.
+# An API key is not automatically free just because you have a free ChatGPT account.
+# If your API account has no free credits, API requests require available API credits.
