@@ -24,6 +24,7 @@ except Exception:
     genai = None
     GEMINI_AVAILABLE = False
 
+
 # Optional document exporters
 try:
     from reportlab.lib.pagesizes import A4
